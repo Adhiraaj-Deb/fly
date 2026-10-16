@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Autonomous On-Call Fruit Fly — Three.js & Connectome LIF Simulation</title>
+  <meta name="description" content="An autonomous Drosophila melanogaster simulated with real FlyWire connectome LIF dynamics and tripod gait kinematics, living in a nighttime NYC apartment on on-call incident duty.">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Local Self-Contained Import Map -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.js",
+      "three/addons/controls/OrbitControls.js": "./vendor/OrbitControls.js",
+      "./js/i18n.js": "./js/i18n.js",
+      "./js/neural-panel.js": "./js/neural-panel.js"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <!-- Loading Screen -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div style="font-size: 13.5px; font-weight: 600; letter-spacing: 0.05em; color: #cbd5e1;">
+      INITIALIZING FLYWIRE CONNECTOME &amp; SCENE...
+    </div>
+    <div style="font-size: 11px; font-family: monospace; color: #64748b;">
+      Loading 3,963 LIF Neurons · 354,879 Synapses · Three.js Workstation
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-badge">ON-CALL</span>
+      <span class="brand-title">THE AUTONOMOUS FRUIT FLY</span>
+      <span class="brand-sub">FlyWire v783 · LIF Connectome</span>
+    </div>
+
+    <!-- Active State Pill -->
+    <div id="status-pill" class="status-pill exploring">
+      <span class="status-dot"></span>
+      <span id="status-text">AUTONOMOUS EXPLORING</span>
+    </div>
+
+    <div class="header-actions">
+      <button id="btn-brain-drawer" class="btn-secondary" title="Inspect biological spike activity of all 3,963 neurons">
+        🧠 CONNECTOME CIRCUIT
+      </button>
+      <button id="btn-mute" class="btn-secondary" title="Mute on-call electronic pager audio">
+        🔊 SOUND ON
+      </button>
+      <button id="btn-reset" class="btn-secondary" title="Reset simulation state">
+        ↺ RESET
+      </button>
+    </div>
+  </header>
+
+  <!-- Camera Presets Switcher -->
+  <nav class="cam-nav" aria-label="Camera Presets">
+    <button class="cam-btn active" data-preset="cinematic">Cinematic Desk</button>
+    <button class="cam-btn" data-preset="follow">Follow Fly</button>
+    <button class="cam-btn" data-preset="laptop">Laptop View</button>
+    <button class="cam-btn" data-preset="skyline">Skyline Pan</button>
+    <button id="btn-reset-cam" class="cam-btn" data-preset="reset" title="Reset camera FOV & position to default (Hotkey: C)" style="opacity: 0.9; border-color: rgba(255, 255, 255, 0.28);">↺ Reset [C]</button>
+    <button id="btn-zoom-in" class="cam-btn" title="Zoom In (Hotkey: + or =)" style="font-size: 15px; font-weight: 700; padding: 4px 10px; line-height: 1;">+</button>
+    <button id="btn-zoom-out" class="cam-btn" title="Zoom Out (Hotkey: -)" style="font-size: 15px; font-weight: 700; padding: 4px 10px; line-height: 1;">−</button>
+  </nav>
+
+  <!-- Live Biomechanical Telemetry & Brainwave Monitor Overlay -->
+  <aside class="telemetry-card" aria-label="Biomechanical Telemetry">
+    <div class="telemetry-header">Biomechanical &amp; Neural Telemetry</div>
+    
+    <!-- Real-time Connectome Brainwave Oscilloscope Graph (Part 4) -->
+    <div class="brainwave-box">
+      <div class="brainwave-header">
+        <span>BRAINWAVE EEG MONITOR</span>
+        <span id="brainwave-stat" class="brainwave-badge">420 Hz</span>
+      </div>
+      <canvas id="brainwave-canvas" width="260" height="72"></canvas>
+    </div>
+
+    <div class="telem-row">
+      <span class="telem-label">Activity:</span>
+      <span id="metric-activity" class="telem-val" style="max-width: 150px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Flying around room</span>
+    </div>
+    <div class="telem-row">
+      <span class="telem-label">Connectome Firing:</span>
+      <span id="metric-hz" class="telem-val accent">~420 spk/s</span>
+    </div>
+    <div class="telem-row">
+      <span class="telem-label">DNa02 Steering:</span>
+      <span id="metric-steer" class="telem-val">+0.0°</span>
+    </div>
+    <div class="telem-row">
+      <span class="telem-label">Next Auto-Page:</span>
+      <span id="metric-next" class="telem-val">15.0s</span>
+    </div>
+  </aside>
+
+  <!-- 3D Scene Viewport -->
+  <main id="viewport"></main>
+
+  <!-- Connectome Brain Drawer (Hidden by default, slides out when toggled) -->
+  <section id="brain-drawer" aria-label="FlyWire Connectome Diagnostics">
+    <div class="drawer-header">
+      <div class="drawer-title">🧠 FlyWire Connectome Circuit (Shiu et al. 2024)</div>
+      <button id="btn-close-brain" class="btn-close" aria-label="Close drawer">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div class="drawer-tabs" id="win-circuit">
+        <button class="drawer-tab active tab" data-tab="map">Circuit Map</button>
+        <button class="drawer-tab tab" data-tab="brain">3D Brain Cloud</button>
+        <span id="net-stat" style="margin-left: auto; font-size: 11px; font-family: monospace; color: #94a3b8;"></span>
+      </div>
+      <div class="map-container" id="map-wrap">
+        <canvas id="map-canvas"></canvas>
+        <canvas id="brain-canvas" hidden></canvas>
+      </div>
+
+      <div style="font-size: 11px; font-weight: 600; color: #94a3b8; margin-top: 4px;">Sensorimotor Rates &amp; DNa02 Steering</div>
+      <div class="signals-container">
+        <canvas id="trace-canvas"></canvas>
+      </div>
+      <div id="meters" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: 11px;"></div>
+    </div>
+  </section>
+
+  <!-- Red Minimal Control Bar (Part 8) -->
+  <footer class="control-bar">
+    <div class="control-left">
+      <!-- Distinctive Red PAGE THE FLY Button -->
+      <button id="btn-page-fly" class="btn-page-fly" title="Trigger immediate on-call incident interrupt">
+        <span class="icon-pager">🚨</span> PAGE THE FLY
+      </button>
+
+      <button id="btn-pause" class="btn-secondary" title="Pause simulation">
+        <span class="icon">⏸</span> PAUSE
+      </button>
+
+      <!-- Auto-Pager Settings -->
+      <div class="scheduler-box">
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-autopage" checked>
+          <span>Auto-Pager</span>
+        </label>
+        <div class="slider-unit">
+          <label>Min:</label>
+          <input type="range" id="slider-min-int" min="5" max="30" step="1" value="13">
+          <span id="label-min-int" class="slider-val">13s</span>
+        </div>
+        <div class="slider-unit">
+          <label>Max:</label>
+          <input type="range" id="slider-max-int" min="8" max="40" step="1" value="17">
+          <span id="label-max-int" class="slider-val">17s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- On-Call Operations Metrics -->
+    <div class="control-right">
+      <div class="metric-stat">
+        <span class="label">Work Timer</span>
+        <span id="metric-work-timer" class="value alert">0.0s</span>
+      </div>
+      <div class="metric-stat">
+        <span class="label">Incidents Resolved</span>
+        <span class="value"><span id="metric-incidents">0</span> <span id="metric-queue" style="font-size: 11px; color: var(--accent-red);"></span></span>
+      </div>
+      <div class="metric-stat">
+        <span class="label">Total Work Time</span>
+        <span id="metric-total-work" class="value">00:00</span>
+      </div>
+      <div class="metric-stat">
+        <span class="label">Total Free Time</span>
+        <span id="metric-total-free" class="value">00:00</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Main JavaScript Module -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

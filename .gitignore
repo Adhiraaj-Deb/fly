@@ -1,0 +1,28 @@
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Cloned External Repositories (upstream dependencies with their own git histories)
+oncall-fruit-fly/flygym/
+oncall-fruit-fly/fruitfly-lab-source/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# Temp & Cache
+scratch/
+.system_generated/
